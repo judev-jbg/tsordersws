@@ -18,26 +18,41 @@ class Route{
         $pathSegments = explode('/', trim($path, '/'));
         $method = $_SERVER['REQUEST_METHOD'];
 
+        if($this->validateEndPoint($pathSegments[1])){
+            if($this->validateEndPoint($method,$pathSegments[1])){
+
+
+
+                
+            }else{
+                header('HTTP/1.1 405 Method Not Allowed');
+                header("Access-Control-Allow-Methods: POST");
+                echo json_encode(['error' => 'el recurso de destino no admite este método']);
+            }
+
+        }else{
+            header('HTTP/1.1 404 Not Found');
+            echo json_encode(['error' => 'El recurso de destino no existe']);
+        }
+
     }
 
+    private function validateEndPoint($requestUri){
+        if (array_key_exists($requestUri, ROUTES)){
+            return true;
+        }
+        return false;
+    }
+
+    private function validateHttpVerbs($method, $requestUri){
+        if (array_key_exists($method, ROUTES[$requestUri])){
+            return true;
+        }
+        return false;
+    }
 
 }
 
-
-// $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
-// $method = $_SERVER['REQUEST_METHOD'];
-
-// $handlers = [
-//     '/' => [
-//         'GET' => 'homeHandler',
-//     ],
-//     '/users' => [
-//         'GET' => 'usersHandler',
-//     ],
-//     '/contact' => [
-//         'GET' => 'contactHandler',
-//     ],
-// ];
 
 // if (array_key_exists($requestUri, $handlers)) {
 //     if (array_key_exists($method, $handlers[$requestUri])) {
