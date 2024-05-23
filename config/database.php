@@ -1,6 +1,5 @@
 <?php
 
-define("URL","http://127.0.0.1:8080/tsordersws");
 define("DB_HOST","127.0.0.1");
 define("DB_PORT","3308");
 define("DB_NAME","toolstock_amz");
