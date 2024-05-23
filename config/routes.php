@@ -1,13 +1,22 @@
 <?php
 
 define("ROUTES", [
-    '/' => [
-        'GET' => 'homeHandler',
+    'order' => [
+        'GET'
     ],
-    '/users' => [
-        'GET' => 'usersHandler',
+    'ordersPending' => [
+        'GET','POST'
     ],
-    '/contact' => [
-        'GET' => 'contactHandler',
+    'orderOutOfStock' => [
+        'GET',
+    ],
+    'ordersHistory' => [
+        'GET',
+    ],
+    'ordersReadyToShip' => [
+        'GET','POST','PATCH','DELETE'
+    ],
+    'registerShipment' => [
+        'POST',
     ],
 ]);
