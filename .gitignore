@@ -1,6 +1,6 @@
 
 *.log
 
-/config/apikey.php
-/config/database.php
+config/apikey.php
+config/database.php
 
