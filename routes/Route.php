@@ -17,10 +17,11 @@ class Route
     public function handleRequest()
     {
 
-        // $apiKey = $_SERVER['HTTP_API_KEY'];
-        // if (!isset($this->apiKeys[$apiKey]) || !$this->apiKeys[$apiKey]) {
+        // $apiKey = $_SERVER['HTTP_API_KEY'] ?? "";
+
+        // if ($apiKey != $this->apiKeys) {
         //     header('HTTP/1.1 401 Unauthorized');
-        //     echo json_encode(['error' => 'NO AUTORIZADO']);
+        //     echo json_encode(['ERROR' => 'NO AUTORIZADO']);
         //     exit;
         // }
 
@@ -38,7 +39,7 @@ class Route
                             $this->orderController->getOrderById($pathSegments[2]);
                         } else {
                             header('HTTP/1.1 400 Bad Request');
-                            echo json_encode(['error' => 'El recurso requiere un pametro (str|int) y no puede estar vacio']);
+                            echo json_encode(['error' => 'El recurso requiere un parametro (str|int) y no puede estar vacio']);
                         }
 
                         break;
@@ -153,8 +154,8 @@ class Route
                 }
             } else {
                 header('HTTP/1.1 405 Method Not Allowed');
-                header("Access-Control-Allow-Methods: POST");
-                echo json_encode(['error' => 'el recurso de destino no admite este método']);
+                header("Access-Control-Allow-Methods: " . implode(ROUTES[$pathSegments[1]]));
+                echo json_encode(['error' => 'El recurso de destino no admite este metodo']);
             }
         } else {
             header('HTTP/1.1 404 Not Found');
@@ -172,7 +173,7 @@ class Route
 
     private function validateHttpVerbs($method, $requestUri)
     {
-        if (array_key_exists($method, ROUTES[$requestUri])) {
+        if (in_array($method, ROUTES[$requestUri])) {
             return true;
         }
         return false;

@@ -7,11 +7,16 @@ class OrderController
 
     public function __construct()
     {
-        $this->orderModel = new Order();
+        $this->orderModel = new OrderModel();
     }
 
     public function getOrderById($id)
     {
+        $orderById = $this->orderModel->getOrderById($id);
+        if ($orderById != null) {
+            header('HTTP/1.1 200 OK');
+            echo $orderById;
+        }
     }
     public function getOrdersPending()
     {

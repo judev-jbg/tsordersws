@@ -33,6 +33,7 @@ class Database
             error_log('Database::Connect::Conexión a BD exitosa');
             return $pdo;
         } catch (PDOException $e) {
+            return null;
             error_log('Database::Connect::Error connection: ' . $e->getMessage());
         }
     }
