@@ -4,19 +4,19 @@ define("ROUTES", [
     'order' => [
         'GET'
     ],
-    'ordersPending' => [
+    'orderspending' => [
         'GET',
     ],
-    'orderOutOfStock' => [
+    'orderoutofstock' => [
         'GET',
     ],
-    'ordersHistory' => [
-        'GET','POST'
+    'ordershistory' => [
+        'GET', 'POST'
     ],
-    'ordersReadyToShip' => [
-        'GET','POST','PATCH','DELETE'
+    'ordersreadytoShip' => [
+        'GET', 'POST', 'PATCH', 'DELETE'
     ],
-    'registerShipment' => [
+    'registershipment' => [
         'POST',
     ],
 ]);

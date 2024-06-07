@@ -34,7 +34,7 @@ class Database
             return $pdo;
         } catch (PDOException $e) {
             return null;
-            error_log('Database::Connect::Error connection: ' . $e->getMessage());
+            error_log('Database::Connect::Error connection::' . $e->getMessage());
         }
     }
 }

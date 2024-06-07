@@ -30,8 +30,8 @@ class Route
         $pathSegments = explode('/', trim($path, '/'));
         $method = $_SERVER['REQUEST_METHOD'];
 
-        if ($this->validateResource($pathSegments[1])) {
-            if ($this->validateHttpVerbs($method, $pathSegments[1])) {
+        if ($this->validateResource(strtolower($pathSegments[1]))) {
+            if ($this->validateHttpVerbs($method, strtolower($pathSegments[1]))) {
 
                 switch ($pathSegments[1]) {
                     case 'order':
@@ -44,10 +44,10 @@ class Route
 
                         break;
 
-                    case 'ordersPending':
+                    case 'orderspending':
                         if (count($pathSegments) == 2) {
                             $this->orderController->getOrdersPending();
-                        } elseif (count($pathSegments) == 3 && $pathSegments[2] == "untilToday") {
+                        } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
                             $this->orderController->getOrdersPendingUntilToday($pathSegments[2]);
                         } else {
                             header('HTTP/1.1 400 Bad Request');
@@ -56,7 +56,7 @@ class Route
 
                         break;
 
-                    case 'orderOutOfStock':
+                    case 'orderoutofstock':
                         if (count($pathSegments) == 2) {
                             $this->orderController->getOrderOutOfStock();
                         } elseif (count($pathSegments) == 3 && $pathSegments[2] == "untilToday") {
@@ -68,7 +68,7 @@ class Route
 
                         break;
 
-                    case 'ordersHistory':
+                    case 'ordershistory':
                         switch ($method) {
                             case 'GET':
                                 if (count($pathSegments) == 2) {
@@ -84,11 +84,11 @@ class Route
                                 if (count($pathSegments) == 2) {
                                     $data = json_decode(file_get_contents('php://input'), true);
                                     if (count($data) > 0) {
-                                        if (array_key_exists("fileName", $data)) {
-                                            $this->orderController->generateOrdersFileFromFileName($data);
+                                        if (array_key_exists("filename", $data)) {
+                                            $this->orderController->shipmentsGeneratedByFileName($data);
                                         } else {
                                             header('HTTP/1.1 400 Bad Request');
-                                            echo json_encode(['error' => 'Este recurso espera fileName en el cuerpo']);
+                                            echo json_encode(['error' => 'Este recurso espera fileName']);
                                         }
                                     } else {
                                         header('HTTP/1.1 400 Bad Request');
