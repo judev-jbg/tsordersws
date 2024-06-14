@@ -26,6 +26,28 @@ class OrderController
             echo $orderPending;
         }
     }
+    public function insertOrderToShipment($data)
+    {
+        header('HTTP/1.1 200 OK');
+        if ($this->isExistOrder($data["idOrder"])) {
+            if ($this->orderNotShipped($data["idOrder"])) {
+                $insertOrder = $this->orderModel->insertOrderToShipment($data);
+                if ($insertOrder != null) {
+                    echo $insertOrder;
+                }
+            } else {
+                echo [
+                    "header" => ["status" => "ok", "insertedRows" => 0],
+                    "message" => "El pedido ya fue enviado"
+                ];
+            }
+        } else {
+            echo [
+                "header" => ["status" => "ok", "insertedRows" => 0],
+                "message" => "El pedido no existe"
+            ];
+        }
+    }
     public function getOrdersPendingUntilToday()
     {
         $orderPendingUntilToday = $this->orderModel->getOrdersPendingUntilToday();
@@ -58,9 +80,9 @@ class OrderController
             echo $ordersHistory;
         }
     }
-    public function shipmentsGeneratedByFileName($data)
+    public function shipmentsGeneratedByFileName($fileName)
     {
-        $shipmentsGenerated = $this->orderModel->shipmentsGeneratedByFileName($data);
+        $shipmentsGenerated = $this->orderModel->shipmentsGeneratedByFileName($fileName);
         if ($shipmentsGenerated != null) {
             header('HTTP/1.1 200 OK');
             echo $shipmentsGenerated;
@@ -71,7 +93,27 @@ class OrderController
         //Validar el tipo de envio (ShipmentType = > [usingFile, usingWS])
     }
 
+    public function getOrdersSelectedShipment()
+    {
+        $selectedShipment = $this->orderModel->getOrdersSelectedShipment();
+        if ($selectedShipment != null) {
+            header('HTTP/1.1 200 OK');
+            echo $selectedShipment;
+        }
+    }
+
     private function sendShipmentWS($data)
     {
+    }
+
+    private function isExistOrder($idOrder)
+    {
+        $rsp = $this->orderModel->isExistOrder($idOrder);
+        return $rsp;
+    }
+    private function orderNotShipped($idOrder)
+    {
+        $rsp = $this->orderModel->orderNotShipped($idOrder);
+        return $rsp;
     }
 }

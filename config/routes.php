@@ -2,21 +2,21 @@
 
 define("ROUTES", [
     'order' => [
-        'GET'
+        'GET',
     ],
     'orderspending' => [
-        'GET',
+        'GET'
     ],
     'orderoutofstock' => [
-        'GET',
+        'GET'
     ],
     'ordershistory' => [
-        'GET', 'POST'
+        'GET'
     ],
     'ordersreadytoShip' => [
         'GET', 'POST', 'PATCH', 'DELETE'
     ],
     'registershipment' => [
-        'POST',
+        'POST'
     ],
 ]);

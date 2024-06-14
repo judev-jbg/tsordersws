@@ -39,7 +39,7 @@ class Route
                             $this->orderController->getOrderById($pathSegments[2]);
                         } else {
                             header('HTTP/1.1 400 Bad Request');
-                            echo json_encode(['error' => 'El recurso requiere un parametro (str|int) y no puede estar vacio']);
+                            echo json_encode(['error' => 'El recurso requiere un parametro (str|int) en este verbo HTTP y no puede estar vacio']);
                         }
 
                         break;
@@ -69,37 +69,13 @@ class Route
                         break;
 
                     case 'ordershistory':
-                        switch ($method) {
-                            case 'GET':
-                                if (count($pathSegments) == 2) {
-                                    $this->orderController->getOrdersHistory();
-                                } else {
-                                    header('HTTP/1.1 400 Bad Request');
-                                    echo json_encode(['error' => 'Este recurso no admite parametros']);
-                                }
-
-                                break;
-
-                            case 'POST':
-                                if (count($pathSegments) == 2) {
-                                    $data = json_decode(file_get_contents('php://input'), true);
-                                    if (count($data) > 0) {
-                                        if (array_key_exists("filename", $data)) {
-                                            $this->orderController->shipmentsGeneratedByFileName($data);
-                                        } else {
-                                            header('HTTP/1.1 400 Bad Request');
-                                            echo json_encode(['error' => 'Este recurso espera fileName']);
-                                        }
-                                    } else {
-                                        header('HTTP/1.1 400 Bad Request');
-                                        echo json_encode(['error' => 'Este recurso espera contenido en el cuerpo']);
-                                    }
-                                } else {
-                                    header('HTTP/1.1 400 Bad Request');
-                                    echo json_encode(['error' => 'Este recurso no admite parametros']);
-                                }
-
-                                break;
+                        if (count($pathSegments) == 2) {
+                            $this->orderController->getOrdersHistory();
+                        } else if (count($pathSegments) == 3 && $pathSegments[2] != "") {
+                            $this->orderController->shipmentsGeneratedByFileName($pathSegments[2]);
+                        } else {
+                            header('HTTP/1.1 400 Bad Request');
+                            echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
                         }
 
                         break;
@@ -107,11 +83,33 @@ class Route
                     case 'ordersReadyToShip':
                         switch ($method) {
                             case 'GET':
-                                # code...
+                                if (count($pathSegments) == 2) {
+                                    $this->orderController->getOrdersSelectedShipment();
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El metodo de este recurso no admite parametros']);
+                                }
                                 break;
 
                             case 'POST':
-                                # code...
+                                if (count($pathSegments) == 2) {
+                                    $data = json_decode(file_get_contents('php://input'), true);
+                                    if (count($data) > 0) {
+                                        if (count($this->missingKeysForShipments($data)) == 0) {
+                                            $this->orderController->insertOrderToShipment($data);
+                                        } else {
+                                            header('HTTP/1.1 400 Bad Request');
+                                            echo json_encode(['error' => 'Este recurso espera ' . implode($this->missingKeysForExistOrder($data))]);
+                                        }
+                                    } else {
+                                        header('HTTP/1.1 400 Bad Request');
+                                        echo json_encode(['error' => 'Este recurso espera contenido en el cuerpo de la solicitud']);
+                                    }
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El recurso no admite parametros en este verbo HTTP']);
+                                }
+
                                 break;
 
                             case 'PATCH':
@@ -128,7 +126,7 @@ class Route
                         if (count($pathSegments) == 2) {
                             $data = json_decode(file_get_contents('php://input'), true);
                             if (count($data) > 0) {
-                                if (count($this->validateItemsBodyToShipment($data)) == 0) {
+                                if (count($this->missingKeysForShipments($data)) == 0) {
                                     $this->orderController->registerShipment($data);
                                 } else {
                                     header('HTTP/1.1 400 Bad Request');
@@ -138,8 +136,6 @@ class Route
                                 header('HTTP/1.1 400 Bad Request');
                                 echo json_encode(['error' => 'Este recurso espera contenido en el cuerpo']);
                             }
-
-                            $this->orderController->registerShipment($pathSegments[2]);
                         } else {
                             header('HTTP/1.1 400 Bad Request');
                             echo json_encode(['error' => 'Este recurso no admite parametros']);
@@ -179,9 +175,16 @@ class Route
         return false;
     }
 
-    private function validateItemsBodyToShipment($dataBody)
+    private function missingKeysForExistOrder($dataBody)
     {
-        $MandatoryParams = ["typeFile", "NameFile"];
+        $MandatoryParams = ["idOrder", "value", "shipmentType"];
+        $MissingParams = array_diff($MandatoryParams, array_keys($dataBody));
+
+        return $MissingParams;
+    }
+    private function missingKeysForShipments($dataBody)
+    {
+        $MandatoryParams = ["servicio", "horario", "destinatario", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "peso", "movil", "refC", "idOrder", "exported", "engraved", "process", "shipmentType"];
         $MissingParams = array_diff($MandatoryParams, array_keys($dataBody));
 
         return $MissingParams;
