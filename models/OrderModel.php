@@ -4,11 +4,12 @@
 class OrderModel
 {
     private $db;
-    private $response = [];
+    private $response;
 
     public function __construct()
     {
         $this->db = new Database();
+        $this->response = [];
     }
 
     public function getOrderById($id)
@@ -112,6 +113,72 @@ class OrderModel
             return json_encode($this->response);
         } catch (PDOException $e) {
             error_log('OrderModel::insertOrderToShipment::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function updateOrderToShipment($columnName, $columnValue, $idOrder)
+    {
+        $query = "UPDATE toolstock_amz.ordersdetail SET :columnName = :columnValue WHERE idOrder = :idOrder";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':columnName', $columnName);
+            $stmt->bindParam(':columnValue', $columnValue);
+            $stmt->bindParam(':idOrder', $idOrder);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrderToShipment::Success::Solicitud exitosa, registro actualizado');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => $stmt->rowCount()];
+                $this->response["message"] = "Registro insertado";
+            } else {
+                error_log('OrderModel::updateOrderToShipment::Success::Solicitud exitosa, el registro no se actualizó');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => 0];
+                $this->response["message"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrderToShipment::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function deleteOrderToShipment($data)
+    {
+        try {
+            $query = "DELETE FROM toolstock_amz.ordersdetail WHERE idOrder = :idOrder";
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':idOrder', $data["idOrder"]);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::deleteOrderToShipment::Success::Solicitud exitosa, registro(s) eliminado(s): ' . $stmt->rowCount());
+                $this->response["header"] = ["status" => "ok", "deletedRows" => $stmt->rowCount()];
+                $this->response["message"] = "Registro eliminado";
+                $stmt->closeCursor();
+
+                if ($data["shipmentType"] == "usingFile") {
+                    $query = "CALL toolstock_amz.uSp_updateMarkShipment(:value, :idOrder)";
+                } else {
+                    $query = "CALL toolstock_amz.uSp_updateSelectedShipment(:value, :idOrder)";
+                }
+
+                $stmt = $this->db->connect()->prepare($query);
+                $stmt->bindParam(':value', $data["value"]);
+                $stmt->bindParam(':idOrder', $data["idOrder"]);
+                $stmt->execute();
+
+                if ($stmt->rowCount() > 0) {
+                    error_log('OrderModel::deleteOrderToShipment::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                } else {
+                    error_log('OrderModel::deleteOrderToShipment::Success::Solicitud exitosa, el registro no se actualizó');
+                }
+            } else {
+                error_log('OrderModel::deleteOrderToShipment::Success::Solicitud exitosa, pero NO se elimino el registro ' . $data["idOrder"]);
+                $this->response["header"] = ["status" => "ok", "deletedRows" => 0];
+                $this->response["message"] = "No se pudo eliminar el registro";
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::deleteOrderToShipment::Error : ' . $e->getMessage());
             return null;
         }
     }
@@ -227,7 +294,7 @@ class OrderModel
             $stmt = $this->db->connect()->prepare($query);
             $stmt->bindParam(':filename', $fileName);
             $stmt->execute();
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if ($result) {
                 error_log('OrderModel::shipmentsGeneratedByFileName::Success::Solicitud exitosa');
                 $this->response["header"] = ["status" => "ok", "content" => 1];
@@ -283,6 +350,52 @@ class OrderModel
             return json_encode($this->response);
         } catch (PDOException $e) {
             error_log('OrderModel::getOrdersSelectedShipment::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function registerShipmentFile($data)
+    {
+        $query = "CALL toolstock_amz.uSp_getShipmentsGeneratedByFileName(:filename)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':filename', $fileName);
+            $stmt->execute();
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($result) {
+                error_log('OrderModel::registerShipmentFile::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1];
+                $this->response["payload"] = [$result];
+            } else {
+                error_log('OrderModel::registerShipmentFile::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::registerShipmentFile::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function registerShipmentWS($data)
+    {
+        $query = "CALL toolstock_amz.uSp_getShipmentsGeneratedByFileName(:filename)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':filename', $fileName);
+            $stmt->execute();
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // if ($result) { 
+            //     error_log('OrderModel::registerShipmentWS::Success::Solicitud exitosa');
+            //     $this->response["header"] = ["status" => "ok", "content" => 1];
+            //     $this->response["payload"] = [$result];
+            // } else {
+            //     error_log('OrderModel::registerShipmentWS::Success::Solicitud exitosa, sin datos para mostrar');
+            //     $this->response["header"] = ["status" => "ok", "content" => 0]; 
+            //     $this->response["payload"] = [];
+            // }
+            return $result;
+        } catch (PDOException $e) {
+            error_log('OrderModel::registerShipmentWS::Error : ' . $e->getMessage());
             return null;
         }
     }

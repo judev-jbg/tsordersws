@@ -17,6 +17,6 @@ define("ROUTES", [
         'GET', 'POST', 'PATCH', 'DELETE'
     ],
     'registershipment' => [
-        'POST'
+        'PATCH'
     ],
 ]);

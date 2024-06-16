@@ -99,7 +99,7 @@ class Route
                                             $this->orderController->insertOrderToShipment($data);
                                         } else {
                                             header('HTTP/1.1 400 Bad Request');
-                                            echo json_encode(['error' => 'Este recurso espera ' . implode($this->missingKeysForExistOrder($data))]);
+                                            echo json_encode(['error' => 'Este recurso espera ' . implode($this->missingKeysForShipments($data))]);
                                         }
                                     } else {
                                         header('HTTP/1.1 400 Bad Request');
@@ -113,11 +113,43 @@ class Route
                                 break;
 
                             case 'PATCH':
-                                # code...
+                                if (count($pathSegments) == 2) {
+                                    $data = json_decode(file_get_contents('php://input'), true);
+                                    if (count($data) > 0) {
+                                        if ($this->missingKeysForUpdateShipments($data["columnName"]) && array_key_exists("shipmentType", $data) && array_key_exists("idOrder", $data)) {
+                                            $this->orderController->updateOrderToShipment($data);
+                                        } else {
+                                            header('HTTP/1.1 400 Bad Request');
+                                            echo json_encode(['error' => 'Este recurso espera columnName, columnValue, shipmentType y idOrder']);
+                                        }
+                                    } else {
+                                        header('HTTP/1.1 400 Bad Request');
+                                        echo json_encode(['error' => 'Este recurso espera contenido en el cuerpo de la solicitud']);
+                                    }
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El recurso no admite parametros en este verbo HTTP']);
+                                }
                                 break;
 
                             case 'DELETE':
-                                # code...
+                                if (count($pathSegments) == 2) {
+                                    $data = json_decode(file_get_contents('php://input'), true);
+                                    if (count($data) > 0) {
+                                        if (array_key_exists("idOrder", $data) && array_key_exists("shipmentType", $data)) {
+                                            $this->orderController->deleteOrderToShipment($data);
+                                        } else {
+                                            header('HTTP/1.1 400 Bad Request');
+                                            echo json_encode(['error' => 'Este recurso espera idOrder y shipmentType']);
+                                        }
+                                    } else {
+                                        header('HTTP/1.1 400 Bad Request');
+                                        echo json_encode(['error' => 'Este recurso espera contenido en el cuerpo de la solicitud']);
+                                    }
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El recurso no admite parametros en este verbo HTTP']);
+                                }
                                 break;
                         }
 
@@ -126,11 +158,11 @@ class Route
                         if (count($pathSegments) == 2) {
                             $data = json_decode(file_get_contents('php://input'), true);
                             if (count($data) > 0) {
-                                if (count($this->missingKeysForShipments($data)) == 0) {
+                                if (array_key_exists("shipmentType", $data)) {
                                     $this->orderController->registerShipment($data);
                                 } else {
                                     header('HTTP/1.1 400 Bad Request');
-                                    echo json_encode(['error' => 'Este recurso tambien espera [] en el cuerpo']);
+                                    echo json_encode(['error' => 'Este recurso espera shipmentType']);
                                 }
                             } else {
                                 header('HTTP/1.1 400 Bad Request');
@@ -175,18 +207,19 @@ class Route
         return false;
     }
 
-    private function missingKeysForExistOrder($dataBody)
+    private function missingKeysForUpdateShipments($field)
     {
-        $MandatoryParams = ["idOrder", "value", "shipmentType"];
-        $MissingParams = array_diff($MandatoryParams, array_keys($dataBody));
-
-        return $MissingParams;
+        $fieldsToUpdate = ["servicio", "horario", "destinatario", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "peso", "movil", "refC"];
+        if (array_key_exists($field, $fieldsToUpdate)) {
+            return true;
+        }
+        return false;
     }
+
     private function missingKeysForShipments($dataBody)
     {
         $MandatoryParams = ["servicio", "horario", "destinatario", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "peso", "movil", "refC", "idOrder", "exported", "engraved", "process", "shipmentType"];
         $MissingParams = array_diff($MandatoryParams, array_keys($dataBody));
-
         return $MissingParams;
     }
 }
