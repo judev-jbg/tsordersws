@@ -7,13 +7,13 @@ define("ROUTES", [
     'orderspending' => [
         'GET'
     ],
-    'orderoutofstock' => [
+    'ordersoutofstock' => [
         'GET'
     ],
     'ordershistory' => [
         'GET'
     ],
-    'ordersreadytoShip' => [
+    'ordersreadytoship' => [
         'GET', 'POST', 'PATCH', 'DELETE'
     ],
     'registershipment' => [

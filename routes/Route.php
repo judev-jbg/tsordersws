@@ -33,7 +33,7 @@ class Route
         if ($this->validateResource(strtolower($pathSegments[1]))) {
             if ($this->validateHttpVerbs($method, strtolower($pathSegments[1]))) {
 
-                switch ($pathSegments[1]) {
+                switch (strtolower($pathSegments[1])) {
                     case 'order':
                         if (count($pathSegments) == 3 && $pathSegments[2] != "") {
                             $this->orderController->getOrderById($pathSegments[2]);
@@ -56,10 +56,10 @@ class Route
 
                         break;
 
-                    case 'orderoutofstock':
+                    case 'ordersoutofstock':
                         if (count($pathSegments) == 2) {
                             $this->orderController->getOrderOutOfStock();
-                        } elseif (count($pathSegments) == 3 && $pathSegments[2] == "untilToday") {
+                        } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
                             $this->orderController->getOrderOutOfStockUntilToday($pathSegments[2]);
                         } else {
                             header('HTTP/1.1 400 Bad Request');
@@ -80,7 +80,7 @@ class Route
 
                         break;
 
-                    case 'ordersReadyToShip':
+                    case 'ordersreadytoship':
                         switch ($method) {
                             case 'GET':
                                 if (count($pathSegments) == 2) {
@@ -94,12 +94,12 @@ class Route
                             case 'POST':
                                 if (count($pathSegments) == 2) {
                                     $data = json_decode(file_get_contents('php://input'), true);
-                                    if (count($data) > 0) {
+                                    if ($data !== null && !empty($data) && count($data) > 0) {
                                         if (count($this->missingKeysForShipments($data)) == 0) {
                                             $this->orderController->insertOrderToShipment($data);
                                         } else {
                                             header('HTTP/1.1 400 Bad Request');
-                                            echo json_encode(['error' => 'Este recurso espera ' . implode($this->missingKeysForShipments($data))]);
+                                            echo json_encode(['error' => 'Este recurso espera ' . implode(", ", $this->missingKeysForShipments($data))]);
                                         }
                                     } else {
                                         header('HTTP/1.1 400 Bad Request');
@@ -109,18 +109,18 @@ class Route
                                     header('HTTP/1.1 400 Bad Request');
                                     echo json_encode(['error' => 'El recurso no admite parametros en este verbo HTTP']);
                                 }
-
                                 break;
 
                             case 'PATCH':
                                 if (count($pathSegments) == 2) {
                                     $data = json_decode(file_get_contents('php://input'), true);
-                                    if (count($data) > 0) {
-                                        if ($this->missingKeysForUpdateShipments($data["columnName"]) && array_key_exists("shipmentType", $data) && array_key_exists("idOrder", $data)) {
+                                    if ($data !== null && !empty($data) && count($data) > 0) {
+                                        if ($this->missingKeysForUpdateShipments($data["columnName"]) && array_key_exists("columnValue", $data) && array_key_exists("idOrder", $data)) {
                                             $this->orderController->updateOrderToShipment($data);
                                         } else {
                                             header('HTTP/1.1 400 Bad Request');
-                                            echo json_encode(['error' => 'Este recurso espera columnName, columnValue, shipmentType y idOrder']);
+                                            $columnIncorrect = ($this->missingKeysForUpdateShipments($data["columnName"])) ? "" : " El valor de columnName (" . $data["columnName"] . ") no es valido";
+                                            echo json_encode(['error' => 'Este recurso espera columnName, columnValue y idOrder.' . $columnIncorrect]);
                                         }
                                     } else {
                                         header('HTTP/1.1 400 Bad Request');
@@ -135,7 +135,7 @@ class Route
                             case 'DELETE':
                                 if (count($pathSegments) == 2) {
                                     $data = json_decode(file_get_contents('php://input'), true);
-                                    if (count($data) > 0) {
+                                    if ($data !== null && !empty($data) && count($data) > 0) {
                                         if (array_key_exists("idOrder", $data) && array_key_exists("shipmentType", $data)) {
                                             $this->orderController->deleteOrderToShipment($data);
                                         } else {
@@ -154,10 +154,10 @@ class Route
                         }
 
                         break;
-                    case 'registerShipment':
+                    case 'registershipment':
                         if (count($pathSegments) == 2) {
                             $data = json_decode(file_get_contents('php://input'), true);
-                            if (count($data) > 0) {
+                            if ($data !== null && !empty($data) && count($data) > 0) {
                                 if (array_key_exists("shipmentType", $data)) {
                                     $this->orderController->registerShipment($data);
                                 } else {
@@ -182,7 +182,7 @@ class Route
                 }
             } else {
                 header('HTTP/1.1 405 Method Not Allowed');
-                header("Access-Control-Allow-Methods: " . implode(ROUTES[$pathSegments[1]]));
+                header("Access-Control-Allow-Methods: " . implode(", ", ROUTES[$pathSegments[1]]));
                 echo json_encode(['error' => 'El recurso de destino no admite este metodo']);
             }
         } else {
@@ -209,8 +209,8 @@ class Route
 
     private function missingKeysForUpdateShipments($field)
     {
-        $fieldsToUpdate = ["servicio", "horario", "destinatario", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "peso", "movil", "refC"];
-        if (array_key_exists($field, $fieldsToUpdate)) {
+        $fieldsToUpdate = ["servicio", "horario", "destinatario", "direccion", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "movil", "refC"];
+        if (in_array($field, $fieldsToUpdate)) {
             return true;
         }
         return false;
@@ -218,7 +218,7 @@ class Route
 
     private function missingKeysForShipments($dataBody)
     {
-        $MandatoryParams = ["servicio", "horario", "destinatario", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "peso", "movil", "refC", "idOrder", "exported", "engraved", "process", "shipmentType"];
+        $MandatoryParams = ["servicio", "horario", "destinatario", "direccion", "pais", "cp", "poblacion", "telefono", "email", "departamento", "contacto", "observaciones", "bultos", "movil", "refC", "idOrder", "process", "shipmentType"];
         $MissingParams = array_diff($MandatoryParams, array_keys($dataBody));
         return $MissingParams;
     }

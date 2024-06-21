@@ -28,41 +28,77 @@ class OrderController
     }
     public function insertOrderToShipment($data)
     {
-        header('HTTP/1.1 201 Created');
-        if ($this->isExistOrder($data["idOrder"])) {
-            if ($this->orderNotShipped($data["idOrder"])) {
-                $insertOrder = $this->orderModel->insertOrderToShipment($data);
-                if ($insertOrder != null) {
-                    echo $insertOrder;
-                }
-            } else {
-                echo [
-                    "header" => ["status" => "ok", "insertedRows" => 0],
-                    "message" => "El pedido ya fue enviado"
-                ];
-            }
-        } else {
-            echo [
-                "header" => ["status" => "ok", "insertedRows" => 0],
-                "message" => "El pedido no existe"
-            ];
+        if (!$this->isExistOrder($data["idOrder"])) {
+            $this->returnNoContent("El pedido no existe");
+            return;
         }
+
+        if (!$this->orderNotShipped($data["idOrder"])) {
+            $this->returnNoContent("El pedido ya fue enviado");
+            return;
+        }
+
+        $insertOrder = $this->orderModel->insertOrderToShipment($data);
+
+        if ($insertOrder === null) {
+            http_response_code(500);
+            return;
+        }
+
+        $header = json_decode($insertOrder, true)["header"];
+
+        if (!array_key_exists("insertedRows", $header) || $header["insertedRows"] <= 0) {
+            $this->returnNoContent("No se inserto el registro");
+            return;
+        }
+
+        http_response_code(201);
+        echo $insertOrder;
+    }
+    private function returnNoContent($message)
+    {
+        http_response_code(202);
+        echo json_encode([
+            "header" => ["status" => "ok", "insertedRows" => 0],
+            "message" => $message
+        ]);
     }
     public function updateOrderToShipment($data)
     {
         $orderToShipment = $this->orderModel->updateOrderToShipment($data["columnName"], $data["columnValue"], $data["idOrder"]);
-        if ($orderToShipment != null) {
-            header('HTTP/1.1 200 OK');
-            echo $orderToShipment;
+
+        if ($orderToShipment === null) {
+            http_response_code(500);
+            return;
         }
+
+        http_response_code(201);
+        echo $orderToShipment;
     }
     public function deleteOrderToShipment($data)
     {
-        $deleteOrder = $this->orderModel->deleteOrderToShipment($data);
-        if ($deleteOrder != null) {
-            header('HTTP/1.1 200 OK');
-            echo $deleteOrder;
+
+        if (!$this->isExistOrder($data["idOrder"])) {
+            $this->returnNoContent("El pedido no existe");
+            return;
         }
+
+        $deleteOrder = $this->orderModel->deleteOrderToShipment($data);
+
+        if ($deleteOrder === null) {
+            http_response_code(500);
+            return;
+        }
+
+        $header = json_decode($deleteOrder, true)["header"];
+
+        if (!array_key_exists("deletedRows", $header) || $header["deletedRows"] <= 0) {
+            $this->returnNoContent("No se elimino el registro");
+            return;
+        }
+
+        http_response_code(200);
+        echo $deleteOrder;
     }
     public function getOrdersPendingUntilToday()
     {
@@ -114,22 +150,31 @@ class OrderController
             }
         } else {
             $shipmentsUsingWS = $this->registerShipmentWS($data);
-            if ($shipmentsUsingWS != null) {
-                $result = $this->requestShipmentWS($shipmentsUsingWS);
-                if (count($result) > 0) {
-                    header('HTTP/1.1 201 Created');
-                    $response = [
-                        "header" => ["status" => "ok", "content" => 1],
-                        "payload" => $result
-                    ];
-                } else {
-                    header('HTTP/1.1 200 Ok');
-                    $response = [
-                        "header" => ["status" => "ok", "content" => 0],
-                        "payload" => []
-                    ];
-                }
+            if ($shipmentsUsingWS == null) {
+                http_response_code(500);
+                return;
             }
+
+            if (!array_key_exists("content", $shipmentsUsingWS["header"]) || $shipmentsUsingWS["header"]["content"] <= 0) {
+                echo json_encode($shipmentsUsingWS);
+                return;
+            }
+
+            $result = $this->requestShipmentWS($shipmentsUsingWS);
+            if (count($result) > 0) {
+                header('HTTP/1.1 201 Created');
+                $response = [
+                    "header" => ["status" => "ok", "content" => 1],
+                    "payload" => $result
+                ];
+            } else {
+                header('HTTP/1.1 200 Ok');
+                $response = [
+                    "header" => ["status" => "ok", "content" => 0],
+                    "payload" => []
+                ];
+            }
+
             echo $response;
         }
     }
