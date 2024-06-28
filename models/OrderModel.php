@@ -180,7 +180,7 @@ class OrderModel
     }
     public function getOrdersPending()
     {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStock()";
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshipped()";
         try {
             $stmt = $this->db->connect()->query($query);
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -243,7 +243,7 @@ class OrderModel
     }
     public function getOrderOutOfStockUntilToday()
     {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedExpireToday()";
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStockExpireToday()";
         try {
             $stmt = $this->db->connect()->query($query);
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -355,7 +355,7 @@ class OrderModel
     }
     public function registerShipmentFile($data)
     {
-        $query = "CALL toolstock_amz.uSp_getOrdersSelectedShipment()";
+        $query = "CALL toolstock_amz.uSp_getOrdersForShipmentFile()";
         try {
             $stmt = $this->db->connect()->query($query);
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -376,23 +376,22 @@ class OrderModel
     }
     public function registerShipmentWS($data)
     {
-        $query = "CALL toolstock_amz.uSp_getShipmentsGeneratedByFileName(:filename)";
+        $query = "CALL toolstock_amz.uSp_getOrdersForShipmentWS()";
         try {
-            $stmt = $this->db->connect()->prepare($query);
-            $stmt->bindParam(':filename', $fileName);
-            $stmt->execute();
+            $stmt = $this->db->connect()->query($query);
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if ($result) {
                 error_log('OrderModel::registerShipmentWS::Success::Solicitud exitosa');
-                return $result;
-                // $this->response["header"] = ["status" => "ok", "content" => 1];
-                // $this->response["payload"] = [$result];
+                // return $result;
+                $this->response["header"] = ["status" => "ok", "content" => 1];
+                $this->response["payload"] = $result;
             } else {
                 error_log('OrderModel::registerShipmentWS::Success::Solicitud exitosa, sin datos para mostrar');
                 $this->response["header"] = ["status" => "ok", "content" => 0];
                 $this->response["payload"] = [];
-                return $this->response;
+                // return $this->response;
             }
+            return $this->response;
         } catch (PDOException $e) {
             error_log('OrderModel::registerShipmentWS::Error : ' . $e->getMessage());
             return null;

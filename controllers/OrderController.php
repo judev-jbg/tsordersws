@@ -160,22 +160,22 @@ class OrderController
                 return;
             }
 
-            $result = $this->requestShipmentWS($shipmentsUsingWS);
+            $result = $this->requestShipmentWS($shipmentsUsingWS["payload"]);
             if (count($result) > 0) {
-                header('HTTP/1.1 201 Created');
+                header('HTTP/1.1 200 Ok');
                 $response = [
                     "header" => ["status" => "ok", "content" => 1],
                     "payload" => $result
                 ];
             } else {
-                header('HTTP/1.1 200 Ok');
+                header('HTTP/1.1 202 Accepted');
                 $response = [
                     "header" => ["status" => "ok", "content" => 0],
                     "payload" => []
                 ];
             }
-
-            echo $response;
+            // var_dump($response);
+            echo json_encode($response);
         }
     }
 
@@ -215,8 +215,8 @@ class OrderController
     }
     private function requestShipmentWS($data)
     {
-        require_once "../vendor/autoload.php";
-        $dotenv = Dotenv\Dotenv::createMutable("../");
+        require_once "./vendor/autoload.php";
+        $dotenv = Dotenv\Dotenv::createMutable("./");
         $dotenv->load();
 
         $staticData = [
@@ -279,7 +279,7 @@ class OrderController
                 $response = [
                     "codResponseWS" => $returnAtt,
                     "responseWS" => "",
-                    "responseMessage" => "Envio insertado Ok",
+                    "messageWS" => "Envio insertado Ok",
                     "idOrder" => $envio["idOrder"],
                     "uidExp" => $uidAtt,
                     "codBar" => $codBarAtt,
@@ -287,8 +287,16 @@ class OrderController
                 ];
 
 
-                $decodedEtiqueta = base64_decode($etiqueta);
-                $response["decodedLabel"] = $decodedEtiqueta;
+                // $decodedEtiqueta = base64_decode($etiqueta);
+                $chunkSize = 1024;
+                $chunks = str_split($etiqueta, $chunkSize);
+                foreach ($chunks as $chunk) {
+                    // Puedes enviar cada trozo por separado en la respuesta de tu web service REST
+                    // Por ejemplo, utilizando JSON
+                    $labelChunk[] = array('chunk' => $chunk);
+                }
+
+                $response["decodedLabel"] = $labelChunk;
 
 
                 // if ($decodedEtiqueta !== false) {
@@ -333,7 +341,7 @@ class OrderController
                 $response = [
                     "codResponseWS" => $returnAtt,
                     "responseWS" => $error,
-                    "responseMessage" => ($this->getErrorWS($returnAtt) == "") ? $error : $this->getErrorWS($returnAtt),
+                    "messageWS" => ($this->getErrorWS($returnAtt) == "") ? $error : $this->getErrorWS($returnAtt),
                     "idOrder" => $envio["idOrder"],
                 ];
             }
