@@ -115,7 +115,6 @@ class OrderModel
     public function updateOrderToShipment($columnName, $columnValue, $idOrder)
     {
         $query = "UPDATE toolstock_amz.selectedShipment SET $columnName = :columnValue WHERE idOrder = :idOrder AND fileGenerateName IS NULL";
-        error_log($columnName . ' ' . $columnValue . ' ' . $idOrder);
         try {
             $stmt = $this->db->connect()->prepare($query);
             $stmt->bindParam(':columnValue', $columnValue);
@@ -353,7 +352,7 @@ class OrderModel
             return null;
         }
     }
-    public function registerShipmentFile($data)
+    public function registerShipmentFile()
     {
         $query = "CALL toolstock_amz.uSp_getOrdersForShipmentFile()";
         try {
@@ -362,7 +361,17 @@ class OrderModel
             if ($result) {
                 error_log('OrderModel::registerShipmentFile::Success::Solicitud exitosa');
                 $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = [$result];
+                $this->response["payload"] = $result;
+
+                $fileGenerateName = "Envios_" . date("dmY_His") . ".xlsx";
+
+                for ($i = 0; $i < sizeof($this->response["payload"]); $i++) {
+                    $this->response["payload"][$i]["fileGenerateName"] = $fileGenerateName;
+                }
+
+                if ($this->updateShipmentFile($fileGenerateName)) {
+                    $this->updateOrdersDetailFile();
+                }
             } else {
                 error_log('OrderModel::registerShipmentFile::Success::Solicitud exitosa, sin datos para mostrar');
                 $this->response["header"] = ["status" => "ok", "content" => 0];
@@ -376,10 +385,12 @@ class OrderModel
     }
     public function registerShipmentWS($data)
     {
-        $query = "CALL toolstock_amz.uSp_getOrdersForShipmentWS()";
+        $query = "CALL toolstock_amz.uSp_getOrdersForShipmentWS(:idOrder)";
         try {
-            $stmt = $this->db->connect()->query($query);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':idOrder', $data["idOrder"]);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($result) {
                 error_log('OrderModel::registerShipmentWS::Success::Solicitud exitosa');
                 // return $result;
@@ -394,6 +405,110 @@ class OrderModel
             return $this->response;
         } catch (PDOException $e) {
             error_log('OrderModel::registerShipmentWS::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    private function updateShipmentFile($fileGenerateName)
+    {
+
+        $query = "CALL toolstock_amz.uSp_updateShipmentFile(:fileGenerateName)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':fileGenerateName', $fileGenerateName);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateShipmentFile::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                return true;
+            } else {
+                error_log('OrderModel::updateShipmentFile::Success::Solicitud exitosa, no se actualizo ningun registro');
+                return false;
+            }
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateShipmentFile::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    private function updateOrdersDetailFile()
+    {
+
+        $query = "CALL toolstock_amz.uSp_updateOrdersDetailFile()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrdersDetailFile::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                return true;
+            } else {
+                error_log('OrderModel::updateOrdersDetailFile::Success::Solicitud exitosa, no se actualizo ningun registro');
+                return false;
+            }
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrdersDetailFile::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function updateOrdersDetailWS($result)
+    {
+        $query = "CALL toolstock_amz.uSp_updateOrdersDetailWS(:idOrder, :uIdExp, :expeditionTraking, :codBar)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':idOrder', $result["idOrder"]);
+            $stmt->bindParam(':uIdExp', $result["uidExp"]);
+            $stmt->bindParam(':expeditionTraking', $result["exp"]);
+            $stmt->bindParam(':codBar', $result["codBar"]);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrdersDetailWS::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                if ($this->updateShipmentWS($result["idOrder"])) {
+                    $this->updateOrdersWS($result["idOrder"], $result["exp"]);
+                }
+            } else {
+                error_log('OrderModel::updateOrdersDetailWS::Success::Solicitud exitosa, no se actualizo ningun registro');
+            }
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrdersDetailWS::Error : ' . $e->getMessage());
+        }
+    }
+    private function updateShipmentWS($idOrder)
+    {
+
+        $query = "CALL toolstock_amz.uSp_updateShipmentWS(:idOrder)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':idOrder', $idOrder);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateShipmentWS::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                return true;
+            } else {
+                error_log('OrderModel::updateShipmentWS::Success::Solicitud exitosa, no se actualizo ningun registro');
+                return false;
+            }
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateShipmentWS::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    private function updateOrdersWS($idOrder, $exp)
+    {
+        $query = "CALL toolstock_amz.uSp_updateOrdersWS(:idOrder, :exp)";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':idOrder', $idOrder);
+            $stmt->bindParam(':exp', $exp);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrdersWS::Success::Solicitud exitosa, registro(s) actualizado(s): ' . $stmt->rowCount());
+                return true;
+            } else {
+                error_log('OrderModel::updateOrdersWS::Success::Solicitud exitosa, no se actualizo ningun registro');
+                return false;
+            }
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrdersWS::Error : ' . $e->getMessage());
             return null;
         }
     }

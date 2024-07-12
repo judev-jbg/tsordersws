@@ -142,13 +142,27 @@ class OrderController
     }
     public function registerShipment($data)
     {
+        /** Si el envio se hace a traves de Fichero GLS **/
         if ($data["shipmentType"] == "usingFile") {
-            $shipmentsUsingFile = $this->registerShipmentFile($data);
+
+            $shipmentsUsingFile = $this->registerShipmentFile();
             if ($shipmentsUsingFile != null) {
+
                 header('HTTP/1.1 200 OK');
                 echo $shipmentsUsingFile;
             }
         } else {
+            /** Si el envio se hace a traves de WS GLS **/
+            if (!array_key_exists("idOrder", $data)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Este recurso espera idOrder']);
+                return;
+            }
+
+            if (!$this->orderNotShipped($data["idOrder"])) {
+                $this->returnNoContent("El pedido ya fue enviado");
+            }
+
             $shipmentsUsingWS = $this->registerShipmentWS($data);
             if ($shipmentsUsingWS == null) {
                 http_response_code(500);
@@ -162,7 +176,12 @@ class OrderController
 
             $result = $this->requestShipmentWS($shipmentsUsingWS["payload"]);
             if (count($result) > 0) {
-                header('HTTP/1.1 200 Ok');
+                if ($result["codResponseWS"] == 0) {
+                    $this->orderModel->updateOrdersDetailWS($result);
+                    header('HTTP/1.1 200 Ok');
+                } else {
+                    header('HTTP/1.1 202 Accepted');
+                }
                 $response = [
                     "header" => ["status" => "ok", "content" => 1],
                     "payload" => $result
@@ -174,11 +193,10 @@ class OrderController
                     "payload" => []
                 ];
             }
-            // var_dump($response);
+
             echo json_encode($response);
         }
     }
-
     public function getOrdersSelectedShipment()
     {
         $selectedShipment = $this->orderModel->getOrdersSelectedShipment();
@@ -187,7 +205,6 @@ class OrderController
             echo $selectedShipment;
         }
     }
-
     private function registerShipmentWS($data)
     {
         $shipmentsWS = $this->orderModel->registerShipmentWS($data);
@@ -195,9 +212,9 @@ class OrderController
             return $shipmentsWS;
         }
     }
-    private function registerShipmentFile($data)
+    private function registerShipmentFile()
     {
-        $shipmentsFile = $this->orderModel->registerShipmentFile($data);
+        $shipmentsFile = $this->orderModel->registerShipmentFile();
         if ($shipmentsFile != null) {
             header('HTTP/1.1 200 OK');
             return $shipmentsFile;
@@ -213,7 +230,7 @@ class OrderController
         $rsp = $this->orderModel->orderNotShipped($idOrder);
         return $rsp;
     }
-    private function requestShipmentWS($data)
+    private function requestShipmentWS($envio)
     {
         require_once "./vendor/autoload.php";
         $dotenv = Dotenv\Dotenv::createMutable("./");
@@ -233,121 +250,129 @@ class OrderController
 
         ];
 
-        $objResponse = [];
-        foreach ($data as $envio) {
-            $xml = $this->generateXML($staticData, $envio);
+        $xml = $this->generateXML($staticData, $envio);
 
-            $ch = curl_init();
+        $ch = curl_init();
 
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-            curl_setopt($ch, CURLOPT_HEADER, FALSE);
-            curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
-            curl_setopt($ch, CURLOPT_FRESH_CONNECT, TRUE);
-            curl_setopt($ch, CURLOPT_URL, $staticData["urlSaveShip"]);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: text/xml; charset=UTF-8']);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_HEADER, FALSE);
+        curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
+        curl_setopt($ch, CURLOPT_FRESH_CONNECT, TRUE);
+        curl_setopt($ch, CURLOPT_URL, $staticData["urlSaveShip"]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: text/xml; charset=UTF-8']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
 
-            $postResult = curl_exec($ch);
+        $postResult = curl_exec($ch);
 
-            curl_close($ch);
+        curl_close($ch);
 
-            $xml = simplexml_load_string($postResult, NULL, 0, "http://www.w3.org/2003/05/soap-envelope");
+        $xml = simplexml_load_string($postResult, NULL, 0, "http://www.w3.org/2003/05/soap-envelope");
 
-            $xml->registerXPathNamespace('asm', 'http://www.asmred.com/');
+        $xml->registerXPathNamespace('asm', 'http://www.asmred.com/');
 
-            $resultNode = $xml->xpath("//asm:GrabaServiciosResponse/asm:GrabaServiciosResult")[0];
-            $EnvioNode = $resultNode->xpath("//Servicios/Envio")[0];
-            $returnAtt = (string) $EnvioNode->xpath("./Resultado/@return")[0];
+        $resultNode = $xml->xpath("//asm:GrabaServiciosResponse/asm:GrabaServiciosResult")[0];
+        $EnvioNode = $resultNode->xpath("//Servicios/Envio")[0];
+        $returnAtt = (string) $EnvioNode->xpath("./Resultado/@return")[0];
 
-            // $yearPath = date("Y");
-            // $monthPath = date("m");
-            // $dayPath = date("d");
+        // $yearPath = date("Y");
+        // $monthPath = date("m");
+        // $dayPath = date("d");
 
-            // $dateStr = date("dmY");
-            // $timeStr = date("His");
+        // $dateStr = date("dmY");
+        // $timeStr = date("His");
 
-            // $pathEtiqueta = '../etiquetas/' . $yearPath . "/" . $monthPath . "/" . $dayPath . "/";
+        // $pathEtiqueta = '../etiquetas/' . $yearPath . "/" . $monthPath . "/" . $dayPath . "/";
 
-            if ($returnAtt == "0") {
+        if ($returnAtt == "0") {
 
-                $codBarAtt = (string) $EnvioNode->xpath("./@codbarras")[0];
-                $uidAtt = (string) $EnvioNode->xpath("./@uid")[0];
-                $expAtt = (string) $EnvioNode->xpath("./@codexp")[0];
-                $etiqueta = $EnvioNode->xpath("./Etiquetas/Etiqueta")[0];
+            $codBarAtt = (string) $EnvioNode->xpath("./@codbarras")[0];
+            $uidAtt = (string) $EnvioNode->xpath("./@uid")[0];
+            $expAtt = (string) $EnvioNode->xpath("./@codexp")[0];
+            $referencias = $EnvioNode->xpath("./Referencias/Referencia");
 
-                $response = [
-                    "codResponseWS" => $returnAtt,
-                    "responseWS" => "",
-                    "messageWS" => "Envio insertado Ok",
-                    "idOrder" => $envio["idOrder"],
-                    "uidExp" => $uidAtt,
-                    "codBar" => $codBarAtt,
-                    "exp" => $expAtt,
+            $refs = [];
+            foreach ($referencias as $referencia) {
+                $r = [
+                    "type" => (string) $referencia->xpath("./@tipo")[0],
+                    "value" => (string) $referencia[0]
                 ];
-
-
-                // $decodedEtiqueta = base64_decode($etiqueta);
-                $chunkSize = 1024;
-                $chunks = str_split($etiqueta, $chunkSize);
-                foreach ($chunks as $chunk) {
-                    // Puedes enviar cada trozo por separado en la respuesta de tu web service REST
-                    // Por ejemplo, utilizando JSON
-                    $labelChunk[] = array('chunk' => $chunk);
-                }
-
-                $response["decodedLabel"] = $labelChunk;
-
-
-                // if ($decodedEtiqueta !== false) {
-
-                //     $response["decodedLabel"] = 1;
-                //     $response["decodedLabelMessage"] = "Decodificacion exitosa";
-
-                //     //Si el directorio dinamico no existe
-                //     if (!file_exists($pathEtiqueta)) {
-                //         //Crear directotio
-                //         $flagDir = mkdir($pathEtiqueta, 0777, true);
-
-                //         if ($flagDir) { //Creacion de directorio exitosa
-                //             $filename = $pathEtiqueta . 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
-                //             $response["customPathLabel"] = 1;
-                //         } else { //Creacion de directorio fallida
-                //             $filename = 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
-                //             $response["customPathLabel"] = 0;
-                //         }
-                //         //Si el directorio dinamico ya existe
-                //     } else {
-                //         $filename = $pathEtiqueta . 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
-                //         $response["customPathLabel"] = 1;
-                //     }
-
-
-                //     if (file_put_contents($filename, $decodedEtiqueta) !== false) {
-                //         $response["saveLabel"] = 1;
-                //         $response["label"] = $filename;
-                //     } else {
-                //         $response["saveLabel"] = 0;
-                //         $response["label"] = "";
-                //     }
-                // } else {
-                //     $response["decodedLabel"] = 0;
-                //     $response["decodedLabelMessage"] = "Error al decodificar la etiqueta";
-                // }
-
-            } else {
-                $error = (string) $EnvioNode->xpath("./Errores/Error")[0];
-
-                $response = [
-                    "codResponseWS" => $returnAtt,
-                    "responseWS" => $error,
-                    "messageWS" => ($this->getErrorWS($returnAtt) == "") ? $error : $this->getErrorWS($returnAtt),
-                    "idOrder" => $envio["idOrder"],
-                ];
+                array_push($refs, $r);
             }
-            array_push($objResponse, $response);
+
+            $etiqueta = (string) $EnvioNode->xpath("./Etiquetas/Etiqueta")[0];
+
+            $response = [
+                "codResponseWS" => $returnAtt,
+                "responseWS" => "",
+                "messageWS" => "Envio insertado Ok",
+                "idOrder" => $envio["idOrder"],
+                "uidExp" => $uidAtt,
+                "codBar" => $codBarAtt,
+                "exp" => $expAtt,
+                "refs" => $refs,
+            ];
+
+
+            // $decodedEtiqueta = base64_decode($etiqueta);
+            // $chunkSize = 1024;
+            // $chunks = str_split($etiqueta, $chunkSize);
+            // foreach ($chunks as $chunk) {
+            //     $labelChunk[] = array('chunk' => $chunk);
+            // }
+
+            $response["LabelBase64"] = $etiqueta;
+
+
+            // if ($decodedEtiqueta !== false) {
+
+            //     $response["decodedLabel"] = 1;
+            //     $response["decodedLabelMessage"] = "Decodificacion exitosa";
+
+            //     //Si el directorio dinamico no existe
+            //     if (!file_exists($pathEtiqueta)) {
+            //         //Crear directotio
+            //         $flagDir = mkdir($pathEtiqueta, 0777, true);
+
+            //         if ($flagDir) { //Creacion de directorio exitosa
+            //             $filename = $pathEtiqueta . 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
+            //             $response["customPathLabel"] = 1;
+            //         } else { //Creacion de directorio fallida
+            //             $filename = 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
+            //             $response["customPathLabel"] = 0;
+            //         }
+            //         //Si el directorio dinamico ya existe
+            //     } else {
+            //         $filename = $pathEtiqueta . 'GLS_' . $dateStr  . "_" . $timeStr . "_" . $codBarAtt . ".pdf";
+            //         $response["customPathLabel"] = 1;
+            //     }
+
+
+            //     if (file_put_contents($filename, $decodedEtiqueta) !== false) {
+            //         $response["saveLabel"] = 1;
+            //         $response["label"] = $filename;
+            //     } else {
+            //         $response["saveLabel"] = 0;
+            //         $response["label"] = "";
+            //     }
+            // } else {
+            //     $response["decodedLabel"] = 0;
+            //     $response["decodedLabelMessage"] = "Error al decodificar la etiqueta";
+            // }
+            error_log('OrderController::requestShipmentWS::Success::Solicitud exitosa, envio registrado');
+        } else {
+            $error = (string) $EnvioNode->xpath("./Errores/Error")[0];
+
+            $response = [
+                "codResponseWS" => $returnAtt,
+                "responseWS" => $error,
+                "messageWS" => ($this->getErrorWS($returnAtt) == "") ? $error : $this->getErrorWS($returnAtt),
+                "idOrder" => $envio["idOrder"],
+            ];
+
+            error_log('OrderController::requestShipmentWS::Error::Solicitud procesada pero no se registro el envio.');
         }
-        return $objResponse;
+        return $response;
     }
     private function generateXML($staticData, $envio)
     {
@@ -414,12 +439,12 @@ class OrderController
             "-1" => "Tiempo de espera expirado.  Ha transcurrido el tiempo de espera antes de finalizar la operación o el servidor no responde.",
             "-3" => "Error, El código de barras del envío ya existe.",
             "-33" => "Cp destino no existe o no es de esa plaza",
-            "-48" => "Error, servicio EuroEstandar/EBP: el número de paquetes debe ser siempre 1 (<Bultos>).",
-            "-49" => "Error, servicio EuroEstandar/EBP: el peso debe ser <= 31,5 kgs (<Peso>).",
-            "-50" => "Error, servicio EuroEstandar/EBP: no puede haber RCS (copia sellada de retorno), <Pod>.",
-            "-51" => "Error, servicio EuroEstandar/EBP: no puede haber SWAP (<Retorno>).",
-            "-52" => "Error, servicio EuroEstandar/EBP: se ha informado de un país que no está incluido en el servicio (<Destinatario>.<Pais>).",
-            "-53" => "Error, servicio EuroEstandar/EBP: la agencia no está autorizada a insertar el servicio EuroEstandar/EBP.",
+            "-48" => "Error, servicio EuroEstandar/EBP: El número de paquetes debe ser siempre 1 (<Bultos>). Si necesita enviar mas de un paquete a la misma direccion debe registrar envios individuales por cada paquete que necesite enviar.",
+            "-49" => "Error, servicio EuroEstandar/EBP: El peso debe ser <= 31,5 kgs (<Peso>).",
+            "-50" => "Error, servicio EuroEstandar/EBP: No puede haber RCS (copia sellada de retorno), <Pod>.",
+            "-51" => "Error, servicio EuroEstandar/EBP: No puede haber SWAP (<Retorno>).",
+            "-52" => "Error, servicio EuroEstandar/EBP: Se ha informado de un país que no está incluido en el servicio (<Destinatario>.<Pais>).",
+            "-53" => "Error, servicio EuroEstandar/EBP: La agencia no está autorizada a insertar el servicio EuroEstandar/EBP.",
             "-54" => "Error, servicio EuroEstandar/EBP: La dirección de correo del destinatario es obligatoria (<Destinatario>.<Correo>).",
             "-55" => [
                 "Error, servicio EuroEstandar/EBP: Se requiere el teléfono móvil del destinatario (<Destinatario>.<Movil>).",
@@ -435,7 +460,7 @@ class OrderController
             "-59" => "Error, No puedo Canalizar, código postal del destinatario erróneo.",
             "-70" => "Error, El número de pedido ya existe (<Referencia tipo='0'> o 10 primeros dígitos de la <Referencia tipo='C'> si no existe tipo='0') a esta fecha y código de cliente.",
             "-80" => "Envíos EuroBusiness. Falta un campo obligatorio.",
-            "-81" => "Envíos EuroBusiness. Se transmite un formato erróneo en el campo.",
+            "-81" => "Envíos EuroBusiness. Se transmite un formato erróneo en el campo codigo postal.",
             "-82" => "Envíos EuroBusiness. Código postal incorrecto/código de país incorrecto. Error en el código postal o en su formato, y quizás, una mala combinación de ciudad y código postal.",
             "-83" => "Envíos EuroBusiness. Error interno de GLS. No hay ningún número de paquete libre disponible dentro del intervalo.",
             "-84" => "Envíos EuroBusiness. Error interno de GLS. Falta un parámetro en el fichero de configuración de la UNI-BOX.",
