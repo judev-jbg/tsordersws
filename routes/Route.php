@@ -17,13 +17,13 @@ class Route
     public function handleRequest()
     {
 
-        // $apiKey = $_SERVER['HTTP_API_KEY'] ?? "";
+        $apiKey = $_SERVER['HTTP_API_KEY'] ?? "";
 
-        // if ($apiKey != $this->apiKeys) {
-        //     header('HTTP/1.1 401 Unauthorized');
-        //     echo json_encode(['ERROR' => 'NO AUTORIZADO']);
-        //     exit;
-        // }
+        if ($apiKey != $this->apiKeys) {
+            header('HTTP/1.1 401 Unauthorized');
+            echo json_encode(['ERROR' => 'NO AUTORIZADO']);
+            exit;
+        }
 
 
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
