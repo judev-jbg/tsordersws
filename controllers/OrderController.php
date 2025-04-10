@@ -26,6 +26,76 @@ class OrderController
             echo $orderPending;
         }
     }
+    public function getOrdersPendingUntilToday()
+    {
+        $orderPendingUntilToday = $this->orderModel->getOrdersPendingUntilToday();
+        if ($orderPendingUntilToday != null) {
+            header('HTTP/1.1 200 OK');
+            echo $orderPendingUntilToday;
+        }
+    }
+    public function getOrdersPendingDelayed()
+    {
+        $ordersPendingDelayed = $this->orderModel->getOrdersPendingDelayed();
+        if ($ordersPendingDelayed != null) {
+            header('HTTP/1.1 200 OK');
+            echo $ordersPendingDelayed;
+        }
+    }
+    public function updateOrderFlagStock($data)
+    {
+        $orderPending = $this->orderModel->updateOrderFlagStock($data["withoutstock"], $data["idOrder"]);
+        if ($orderPending === null) {
+            http_response_code(500);
+            return;
+        }
+
+        http_response_code(201);
+        echo $orderPending;
+    }
+    public function getOrderOutOfStock()
+    {
+        $orderOutOfStock = $this->orderModel->getOrderOutOfStock();
+        if ($orderOutOfStock != null) {
+            header('HTTP/1.1 200 OK');
+            echo $orderOutOfStock;
+        }
+    }
+    public function getOrderOutOfStockUntilToday()
+    {
+        $OrderOutOfStockUntilToday = $this->orderModel->getOrderOutOfStockUntilToday();
+        if ($OrderOutOfStockUntilToday != null) {
+            header('HTTP/1.1 200 OK');
+            echo $OrderOutOfStockUntilToday;
+        }
+    }
+    public function getOrderOutOfStockDelayed()
+    {
+        $orderOutOfStockDelayed = $this->orderModel->getOrderOutOfStockDelayed();
+        if ($orderOutOfStockDelayed != null) {
+            header('HTTP/1.1 200 OK');
+            echo $orderOutOfStockDelayed;
+        }
+    }
+    public function getOrdersShipFake()
+    {
+        $ordersShipFake = $this->orderModel->getOrdersShipFake();
+        if ($ordersShipFake != null) {
+            header('HTTP/1.1 200 OK');
+            echo $ordersShipFake;
+        }
+    }
+    public function updateOrderFlagFake($data)
+    {
+        $orderPending = $this->orderModel->updateOrderFlagFake($data["isFake"], $data["idOrder"]);
+        if ($orderPending === null) {
+            http_response_code(500);
+            return;
+        }
+
+        http_response_code(201);
+        echo $orderPending;
+    }
     public function insertOrderToShipment($data)
     {
         if (!$this->isExistOrder($data["idOrder"])) {
@@ -99,30 +169,6 @@ class OrderController
 
         http_response_code(200);
         echo $deleteOrder;
-    }
-    public function getOrdersPendingUntilToday()
-    {
-        $orderPendingUntilToday = $this->orderModel->getOrdersPendingUntilToday();
-        if ($orderPendingUntilToday != null) {
-            header('HTTP/1.1 200 OK');
-            echo $orderPendingUntilToday;
-        }
-    }
-    public function getOrderOutOfStock()
-    {
-        $orderOutOfStock = $this->orderModel->getOrderOutOfStock();
-        if ($orderOutOfStock != null) {
-            header('HTTP/1.1 200 OK');
-            echo $orderOutOfStock;
-        }
-    }
-    public function getOrderOutOfStockUntilToday()
-    {
-        $OrderOutOfStockUntilToday = $this->orderModel->getOrderOutOfStockUntilToday();
-        if ($OrderOutOfStockUntilToday != null) {
-            header('HTTP/1.1 200 OK');
-            echo $OrderOutOfStockUntilToday;
-        }
     }
     public function getOrdersHistory()
     {

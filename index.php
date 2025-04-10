@@ -5,11 +5,17 @@ ini_set('ignore_repeated_errors', TRUE);
 ini_set('display_errors', FALSE);
 ini_set('log_errors', TRUE);
 ini_set('error_log', "C:\\xampp\\htdocs\\tsordersws\\traking.log");
-error_log("====================================================");
+error_log("=========================init===========================");
 
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, api-key");
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 require_once "config/apikey.php";
 require_once "config/routes.php";

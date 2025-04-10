@@ -18,6 +18,7 @@ class Route
     {
 
         $apiKey = $_SERVER['HTTP_API_KEY'] ?? "";
+        error_log('apikey: ' . $apiKey);
 
         if ($apiKey != $this->apiKeys) {
             header('HTTP/1.1 401 Unauthorized');
@@ -45,29 +46,58 @@ class Route
                         break;
 
                     case 'orderspending':
-                        if (count($pathSegments) == 2) {
-                            $this->orderController->getOrdersPending();
-                        } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
-                            $this->orderController->getOrdersPendingUntilToday($pathSegments[2]);
-                        } else {
-                            header('HTTP/1.1 400 Bad Request');
-                            echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
-                        }
-
-                        break;
+                        switch ($method) {
+                            case 'GET':
+                                if (count($pathSegments) == 2) {
+                                    $this->orderController->getOrdersPending();
+                                } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
+                                    $this->orderController->getOrdersPendingUntilToday($pathSegments[2]);
+                                } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "delayed") {
+                                    $this->orderController->getOrdersPendingDelayed($pathSegments[2]);
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
+                                }
+        
+                                break;
+                            case 'PATCH':
+                                $data = json_decode(file_get_contents('php://input'), true);
+                                if ($data !== null && !empty($data) && count($data) > 0) {
+                                    $this->orderController->updateOrderFlagStock($data);
+                                }else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'Este recurso no admite parametros']);
+                                }
+                            }
+                            break;
 
                     case 'ordersoutofstock':
-                        if (count($pathSegments) == 2) {
-                            $this->orderController->getOrderOutOfStock();
-                        } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
-                            $this->orderController->getOrderOutOfStockUntilToday($pathSegments[2]);
-                        } else {
-                            header('HTTP/1.1 400 Bad Request');
-                            echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
+                        switch ($method) {
+                            case 'GET':
+                                if (count($pathSegments) == 2) {
+                                    $this->orderController->getOrderOutOfStock();
+                                } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "untiltoday") {
+                                    $this->orderController->getOrderOutOfStockUntilToday($pathSegments[2]);
+                                } elseif (count($pathSegments) == 3 && strtolower($pathSegments[2]) == "delayed") {
+                                    $this->orderController->getOrderOutOfStockDelayed($pathSegments[2]);
+                                } else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
+                                }
+                                break;
+                            
+                            case 'PATCH':
+                                $data = json_decode(file_get_contents('php://input'), true);
+                                if ($data !== null && !empty($data) && count($data) > 0) {
+                                    $this->orderController->updateOrderFlagFake($data);
+                                }else {
+                                    header('HTTP/1.1 400 Bad Request');
+                                    echo json_encode(['error' => 'Este recurso no admite parametros']);
+                                }
+                                break;
                         }
 
                         break;
-
                     case 'ordershistory':
                         if (count($pathSegments) == 2) {
                             $this->orderController->getOrdersHistory();
@@ -76,6 +106,17 @@ class Route
                         } else {
                             header('HTTP/1.1 400 Bad Request');
                             echo json_encode(['error' => 'El recurso requiere un parametro (str) y no puede estar vacio']);
+                        }
+
+                        break;
+
+
+                    case 'ordersshipfake':
+                        if (count($pathSegments) == 2) {
+                            $this->orderController->getOrdersShipFake();
+                        } else {
+                            header('HTTP/1.1 400 Bad Request');
+                            echo json_encode(['error' => 'El metodo de este recurso no admite parametros']);
                         }
 
                         break;
@@ -181,6 +222,7 @@ class Route
                         break;
                 }
             } else {
+                error_log("Access-Control-Allow-Methods: " . implode(", ", ROUTES[$pathSegments[1]]));
                 header('HTTP/1.1 405 Method Not Allowed');
                 header("Access-Control-Allow-Methods: " . implode(", ", ROUTES[$pathSegments[1]]));
                 echo json_encode(['error' => 'El recurso de destino no admite este metodo']);

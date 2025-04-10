@@ -17,13 +17,15 @@ class OrderModel
         $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedByOrderId(:id)";
         try {
             $stmt = $this->db->connect()->prepare($query);
-            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':id', $id);            
             $stmt->execute();
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+
             if ($result) {
                 error_log('OrderModel::getOrderById::Success::Solicitud exitosa');
                 $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = [$result];
+                $this->response["payload"] = $result;
             } else {
                 error_log('OrderModel::getOrderById::Success::Solicitud exitosa, sin datos para mostrar');
                 $this->response["header"] = ["status" => "ok", "content" => 0];
@@ -32,6 +34,215 @@ class OrderModel
             return json_encode($this->response);
         } catch (PDOException $e) {
             error_log('OrderModel::getOrderById::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrdersPending()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshipped()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrdersPending::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "orderspending", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrdersPending::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "orderspending", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrdersPending::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrdersPendingUntilToday()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedExpireToday()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrdersPendingUntilToday::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "orderspending/untiltoday", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrdersPendingUntilToday::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "orderspending/untiltoday", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrdersPendingUntilToday::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrdersPendingDelayed()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedDelayed()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrdersPendingDelayed::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "orderspending/delayed", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrdersPendingDelayed::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "orderspending/delayed", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrdersPendingDelayed::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function updateOrderFlagStock($newValue, $idOrder)
+    {
+        $query = "UPDATE toolstock_amz.ordersdetail SET pendingWithoutStock = :newValue WHERE orderId = :idOrder";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':newValue', $newValue);
+            $stmt->bindParam(':idOrder', $idOrder);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrderFlagStock::Success::Solicitud exitosa, registro actualizado');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => $stmt->rowCount()];
+                $this->response["message"] = "Registro actualizado";
+            } else {
+                error_log('OrderModel::updateOrderFlagStock::Success::Solicitud exitosa, el registro no se actualizó');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => 0];
+                $this->response["message"] = "No se actualizó el registro";
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrderFlagStock::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrderOutOfStock()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStock()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrderOutOfStock::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "ordersoutofstock", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrderOutOfStock::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "ordersoutofstock", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrderOutOfStock::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrderOutOfStockUntilToday()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStockExpireToday()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrderOutOfStockUntilToday::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "ordersoutofstock/untiltoday", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrderOutOfStockUntilToday::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "ordersoutofstock/untiltoday", "count" => $countItems];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrderOutOfStockUntilToday::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrderOutOfStockDelayed()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStockDelayed()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::getOrderOutOfStockDelayed::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "ordersoutofstock/delayed", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::getOrderOutOfStockDelayed::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "ordersoutofstock/delayed", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::getOrderOutOfStockDelayed::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function getOrdersShipFake()
+    {
+        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedFake()";
+        try {
+            $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
+            $response = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $this->groupOrdersWithItems($response);
+            if ($result) {
+                error_log('OrderModel::uSp_getOrdersDetailUnshippedFake::Success::Solicitud exitosa');
+                $this->response["header"] = ["status" => "ok", "content" => 1, "resource" => "ordersshipfake", "count" => $countItems];
+                $this->response["payload"] = $result;
+            } else {
+                error_log('OrderModel::uSp_getOrdersDetailUnshippedFake::Success::Solicitud exitosa, sin datos para mostrar');
+                $this->response["header"] = ["status" => "ok", "content" => 0, "resource" => "ordersshipfake", "count" => 0];
+                $this->response["payload"] = [];
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::uSp_getOrdersDetailUnshippedFake::Error : ' . $e->getMessage());
+            return null;
+        }
+    }
+    public function updateOrderFlagFake($newValue, $idOrder)
+    {
+        $query = "UPDATE toolstock_amz.ordersdetail SET isShipFake = :newValue WHERE orderId = :idOrder";
+        try {
+            $stmt = $this->db->connect()->prepare($query);
+            $stmt->bindParam(':newValue', $newValue);
+            $stmt->bindParam(':idOrder', $idOrder);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                error_log('OrderModel::updateOrderFlagFake::Success::Solicitud exitosa, registro actualizado');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => $stmt->rowCount()];
+                $this->response["message"] = "Registro actualizado";
+            } else {
+                error_log('OrderModel::updateOrderFlagFake::Success::Solicitud exitosa, el registro no se actualizó');
+                $this->response["header"] = ["status" => "ok", "updatedRows" => $stmt->rowCount()];
+                $this->response["message"] = "No se actualizó el registro";
+            }
+            return json_encode($this->response);
+        } catch (PDOException $e) {
+            error_log('OrderModel::updateOrderFlagFake::Error : ' . $e->getMessage());
             return null;
         }
     }
@@ -177,95 +388,12 @@ class OrderModel
             return null;
         }
     }
-    public function getOrdersPending()
-    {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshipped()";
-        try {
-            $stmt = $this->db->connect()->query($query);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            if ($result) {
-                error_log('OrderModel::getOrdersPending::Success::Solicitud exitosa');
-                $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = $result;
-            } else {
-                error_log('OrderModel::getOrdersPending::Success::Solicitud exitosa, sin datos para mostrar');
-                $this->response["header"] = ["status" => "ok", "content" => 0];
-                $this->response["payload"] = [];
-            }
-            return json_encode($this->response);
-        } catch (PDOException $e) {
-            error_log('OrderModel::getOrdersPending::Error : ' . $e->getMessage());
-            return null;
-        }
-    }
-    public function getOrdersPendingUntilToday()
-    {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedExpireToday()";
-        try {
-            $stmt = $this->db->connect()->query($query);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            if ($result) {
-                error_log('OrderModel::getOrdersPendingUntilToday::Success::Solicitud exitosa');
-                $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = $result;
-            } else {
-                error_log('OrderModel::getOrdersPendingUntilToday::Success::Solicitud exitosa, sin datos para mostrar');
-                $this->response["header"] = ["status" => "ok", "content" => 0];
-                $this->response["payload"] = [];
-            }
-            return json_encode($this->response);
-        } catch (PDOException $e) {
-            error_log('OrderModel::getOrdersPendingUntilToday::Error : ' . $e->getMessage());
-            return null;
-        }
-    }
-    public function getOrderOutOfStock()
-    {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStock()";
-        try {
-            $stmt = $this->db->connect()->query($query);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            if ($result) {
-                error_log('OrderModel::getOrderOutOfStock::Success::Solicitud exitosa');
-                $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = $result;
-            } else {
-                error_log('OrderModel::getOrderOutOfStock::Success::Solicitud exitosa, sin datos para mostrar');
-                $this->response["header"] = ["status" => "ok", "content" => 0];
-                $this->response["payload"] = [];
-            }
-            return json_encode($this->response);
-        } catch (PDOException $e) {
-            error_log('OrderModel::getOrderOutOfStock::Error : ' . $e->getMessage());
-            return null;
-        }
-    }
-    public function getOrderOutOfStockUntilToday()
-    {
-        $query = "CALL toolstock_amz.uSp_getOrdersDetailUnshippedWithOutStockExpireToday()";
-        try {
-            $stmt = $this->db->connect()->query($query);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            if ($result) {
-                error_log('OrderModel::getOrderOutOfStockUntilToday::Success::Solicitud exitosa');
-                $this->response["header"] = ["status" => "ok", "content" => 1];
-                $this->response["payload"] = $result;
-            } else {
-                error_log('OrderModel::getOrderOutOfStockUntilToday::Success::Solicitud exitosa, sin datos para mostrar');
-                $this->response["header"] = ["status" => "ok", "content" => 0];
-                $this->response["payload"] = [];
-            }
-            return json_encode($this->response);
-        } catch (PDOException $e) {
-            error_log('OrderModel::getOrderOutOfStockUntilToday::Error : ' . $e->getMessage());
-            return null;
-        }
-    }
     public function getOrdersHistory()
     {
         $query = "CALL toolstock_amz.uSp_getHistoryShipment()";
         try {
             $stmt = $this->db->connect()->query($query);
+            $countItems = $stmt->rowCount();
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if ($result) {
                 error_log('OrderModel::getOrdersHistory::Success::Solicitud exitosa');
@@ -511,5 +639,62 @@ class OrderModel
             error_log('OrderModel::updateOrdersWS::Error : ' . $e->getMessage());
             return null;
         }
+    }
+
+    private function groupOrdersWithItems(array $orders): array
+    {
+        // Campos que corresponden a la información del producto
+        $productFields = [
+            'orderItemId', 'sku', 'productName', 'quantityPurchased', 
+            'itemPrice', 'itemTax', 'shippingPrice', 'shippingTax', 
+            'vatExclusiveItemPrice', 'vatExclusiveShippingPrice', 
+            'asin', 'referenciaProv'
+        ];
+        
+        // Array para almacenar los pedidos agrupados
+        $groupedOrders = [];
+        
+        // Array para rastrear qué orderIds ya hemos procesado
+        $processedOrderIds = [];
+        
+        foreach ($orders as $order) {
+            $orderId = $order['amazonOrderId'];
+            
+            // Extraemos la información del producto actual
+            $productInfo = [];
+            foreach ($productFields as $field) {
+                if (isset($order[$field])) {
+                    $productInfo[$field] = $order[$field];
+                }
+            }
+            
+            // Si es la primera vez que vemos este orderId
+            if (!isset($processedOrderIds[$orderId])) {
+                // Creamos una copia del pedido sin los campos del producto
+                $orderInfo = $order;
+                
+                // Quitamos los campos del producto del pedido principal
+                foreach ($productFields as $field) {
+                    if (isset($orderInfo[$field])) {
+                        unset($orderInfo[$field]);
+                    }
+                }
+                
+                // Añadimos un array de items con el primer producto
+                $orderInfo['items'] = [$productInfo];
+                
+                // Añadimos el pedido al array de pedidos agrupados
+                $groupedOrders[] = $orderInfo;
+                
+                // Marcamos este orderId como procesado
+                $processedOrderIds[$orderId] = count($groupedOrders) - 1;
+            } else {
+                // Si ya habíamos visto este orderId, añadimos el producto al array de items
+                $index = $processedOrderIds[$orderId];
+                $groupedOrders[$index]['items'][] = $productInfo;
+            }
+        }
+        
+        return $groupedOrders;
     }
 }

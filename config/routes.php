@@ -5,10 +5,13 @@ define("ROUTES", [
         'GET',
     ],
     'orderspending' => [
-        'GET'
+        'GET', 'PATCH'
     ],
     'ordersoutofstock' => [
-        'GET'
+        'GET', 'PATCH'
+    ],
+    'ordersshipfake' => [
+        'GET',
     ],
     'ordershistory' => [
         'GET'
